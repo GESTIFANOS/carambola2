@@ -1,0 +1,147 @@
+Index: linux-4.1.23/arch/mips/include/asm/mach-ath79/ath79_spi_platform.h
+===================================================================
+--- linux-4.1.23.orig/arch/mips/include/asm/mach-ath79/ath79_spi_platform.h
++++ linux-4.1.23/arch/mips/include/asm/mach-ath79/ath79_spi_platform.h
+@@ -15,6 +15,7 @@ struct ath79_spi_platform_data {
+ 	unsigned	bus_num;
+ 	unsigned	num_chipselect;
+ 	bool		use_hw_shiftreg;
++	unsigned	miso_line;
+ };
+ 
+ enum ath79_spi_cs_type {
+Index: linux-4.1.23/drivers/spi/spi-ath79.c
+===================================================================
+--- linux-4.1.23.orig/drivers/spi/spi-ath79.c
++++ linux-4.1.23/drivers/spi/spi-ath79.c
+@@ -53,6 +53,7 @@ struct ath79_spi {
+ 	u32			clk_div;
+ 	unsigned long 		read_addr;
+ 	unsigned long		ahb_rate;
++	unsigned miso_line;
+ };
+ 
+ static inline u32 ath79_spi_rr(struct ath79_spi *sp, unsigned reg)
+@@ -264,6 +265,95 @@ static int ath79_spi_do_read_flash_data(
+ 	return t->len;
+ }
+ 
++static u32 ath79_spi_txrx_mode1(struct spi_device *spi, unsigned nsecs, u32 word, u8 bits)
++{
++	u32 readword = 0;
++	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
++	u32 ioc = sp->ioc_base;
++
++	/* clock starts at inactive polarity */
++	for (word <<= (32 - bits); likely(bits); bits--) {
++		u32 out;
++
++		if (word & (1 << 31))
++			out = ioc | AR71XX_SPI_IOC_DO;
++		else
++			out = ioc & ~AR71XX_SPI_IOC_DO;
++
++		/* setup MSB (to slave) on trailing edge */
++		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, out | AR71XX_SPI_IOC_CLK);
++		ath79_spi_delay(sp, nsecs);
++		readword <<= 1;
++		readword |= gpio_get_value(sp->miso_line);
++		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, out);
++		ath79_spi_delay(sp, nsecs);
++
++		word <<= 1;
++	}
++
++	return readword;
++}
++
++static u32 ath79_spi_txrx_mode2(struct spi_device *spi, unsigned nsecs, u32 word, u8 bits)
++{
++	u32 readword = 0;
++	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
++	u32 ioc = sp->ioc_base;
++
++	/* clock starts at inactive polarity */
++	for (word <<= (32 - bits); likely(bits); bits--) {
++		u32 out;
++
++		if (word & (1 << 31))
++			out = ioc | AR71XX_SPI_IOC_DO;
++		else
++			out = ioc & ~AR71XX_SPI_IOC_DO;
++
++		/* setup MSB (to slave) on trailing edge */
++		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, out);
++		ath79_spi_delay(sp, nsecs);
++		readword <<= 1;
++		readword |= gpio_get_value(sp->miso_line);
++		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, out & ~AR71XX_SPI_IOC_CLK);
++		ath79_spi_delay(sp, nsecs);
++		if (bits == 1)
++			ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, out);
++
++		word <<= 1;
++	}
++
++	return readword;
++}
++
++static u32 ath79_spi_txrx_mode3(struct spi_device *spi, unsigned nsecs, u32 word, u8 bits)
++{
++	u32 readword = 0;
++	struct ath79_spi *sp = ath79_spidev_to_sp(spi);
++	u32 ioc = sp->ioc_base;
++
++	/* clock starts at inactive polarity */
++	for (word <<= (32 - bits); likely(bits); bits--) {
++		u32 out;
++
++		if (word & (1 << 31))
++			out = ioc | AR71XX_SPI_IOC_DO;
++		else
++			out = ioc & ~AR71XX_SPI_IOC_DO;
++
++		/* setup MSB (to slave) on trailing edge */
++		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, out & ~AR71XX_SPI_IOC_CLK);
++		ath79_spi_delay(sp, nsecs);
++		readword <<= 1;
++		readword |= gpio_get_value(sp->miso_line);
++		ath79_spi_wr(sp, AR71XX_SPI_REG_IOC, out);
++		ath79_spi_delay(sp, nsecs);
++
++		word <<= 1;
++	}
++
++	return readword;
++}
++
+ static int ath79_spi_do_read_flash_cmd(struct spi_device *spi,
+ 				       struct spi_transfer *t)
+ {
+@@ -385,10 +475,15 @@ static int ath79_spi_probe(struct platfo
+ 
+ 	sp->bitbang.master = master;
+ 	sp->bitbang.chipselect = ath79_spi_chipselect;
+-	if (pdata->use_hw_shiftreg == true)
++	if (pdata->use_hw_shiftreg == true) {
+ 		sp->bitbang.txrx_word[SPI_MODE_0] = ath79_spi_txrx_shiftreg_mode0;
+-	else
++	}
++	else {
+ 		sp->bitbang.txrx_word[SPI_MODE_0] = ath79_spi_txrx_mode0;
++		sp->bitbang.txrx_word[SPI_MODE_1] = ath79_spi_txrx_mode1;
++		sp->bitbang.txrx_word[SPI_MODE_2] = ath79_spi_txrx_mode2;
++		sp->bitbang.txrx_word[SPI_MODE_3] = ath79_spi_txrx_mode3;
++	}
+ 	sp->bitbang.setup_transfer = ath79_spi_setup_transfer;
+ 	sp->bitbang.flags = SPI_CS_HIGH;
+ 
+@@ -425,6 +520,8 @@ static int ath79_spi_probe(struct platfo
+ 	dev_dbg(&pdev->dev, "register read/write delay is %u nsecs\n",
+ 		sp->rrw_delay);
+ 
++	sp->miso_line = pdata->miso_line;
++
+ 	ath79_spi_enable(sp);
+ 	ret = spi_bitbang_start(&sp->bitbang);
+ 	if (ret)

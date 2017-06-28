@@ -4,5 +4,6 @@ src-git routing https://github.com/openwrt-routing/packages.git^0d9c99ce5caf51b7
 src-git telephony https://github.com/openwrt/telephony.git^ec4f3a1e6b56ff7f3184665b3308b69b2d291613
 src-git management https://github.com/openwrt-management/packages.git^de36f62549d8da3723c80182812dc89ead2959fd
 src-git targets https://github.com/openwrt/targets.git
+src-git owrt_pub_feeds git://github.com/remakeelectric/owrt_pub_feeds.git
 #src-git oldpackages http://git.openwrt.org/packages.git
 #src-link custom /usr/src/openwrt/custom-feed
