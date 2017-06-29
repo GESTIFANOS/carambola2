@@ -1,0 +1,60 @@
+#!/bin/sh
+
+# Modify this program to send with
+# echo $1 > /dev/ttyUSB0
+# and then listen with
+# read X < /dev/ttyUSB0
+
+
+# old can-test script below
+FILENAME=uart-results
+OUTPUTFILE=/tmp/$FILENAME
+MESSAGE=$1
+
+prep() {
+    # Set up the serial port just to be sure
+    stty -F /dev/ttyUSB0 9600 -echo
+    cat /dev/null > $OUTPUTFILE
+}
+
+start_read() {
+    /usr/sbin/uart-read > $OUTPUTFILE &
+}
+
+listen() {
+
+    START_TIME=$(date +%s)
+    TIMEOUT_INTERVAL=10
+
+    [ -s $OUTPUTFILE ]
+    while [ $? == 1 ]
+    do
+        check_time_out $START_TIME $TIMEOUT_INTERVAL
+        [ -s $OUTPUTFILE ]
+    done
+    IFS= read -r line <$OUTPUTFILE
+    echo $line
+    quit
+}
+send_string() {
+    echo $MESSAGE > /dev/ttyUSB0
+}
+
+check_time_out() {
+    CURRENT_TIME=$(date +%s)
+    if [ $CURRENT_TIME -gt $(expr $1 + $2) ]; then
+        echo 'no response received'
+        quit
+    fi
+}
+
+quit() {
+    cat /dev/null > $OUTPUTFILE
+    exit
+}
+
+prep
+start_read
+sleep 2
+send_string
+listen

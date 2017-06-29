@@ -1,0 +1,4 @@
+#!/bin/sh
+crontab -r
+crontab /etc/crontabs/rla 
+/etc/init.d/rla enable

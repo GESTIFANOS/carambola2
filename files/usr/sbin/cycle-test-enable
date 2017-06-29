@@ -1,0 +1,4 @@
+#!/bin/sh
+/usr/sbin/rla-disable
+cp /etc/test/config/cycle-test-saved-state.json /etc/rla/saved_state.json
+/usr/sbin/rla-enable

@@ -1,0 +1,46 @@
+#!/bin/sh
+
+# Prep for shipment
+echo "Running Self Test"
+
+ver_data=$(version)
+echo "STAC firmware version: $ver_data"
+
+temp_data=$(temperature)
+echo "Temperature (C)=$temp_data"
+
+inc_data=$(inclinometer)
+echo "Inclinometer (pitch, roll)=$inc_data"
+
+current_data=$(current)
+echo "Current sensor (voltage, current)=$current_data"
+
+voltage_data=$(power-monitor)
+echo "Internal voltages (3.3, 5.0, 48)=$voltage_data"
+
+echo "Echo test on UART"
+echo_data="1234567890abcdefghij"
+echo "Sending \"$echo_data\""
+echo_response=$(uart-test $echo_data)
+echo "Received \"$echo_response"\"
+
+# rtc
+date_data=$(date +%s) 
+echo "Programming RTC with current system time: $date_data"
+rtc t$date_data >> /dev/null
+echo "Wait 5 seconds"
+sleep 5
+date_data=$(rtc r)
+echo "RTC reports time as $date_data"
+
+# antenna
+echo "Selecting upper antenna"
+antenna J19
+sleep 5
+iwinfo wlan0 info | grep Link
+echo "Selecting lower antenna"
+antenna J20
+sleep 5
+iwinfo wlan0 info | grep Link
+
+

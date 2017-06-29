@@ -1,0 +1,76 @@
+#!/bin/sh
+
+FILENAME=can-results
+OUTPUTFILE=/tmp/$FILENAME
+MESSAGEID=$1
+MESSAGE=$2
+MESSAGE=${MESSAGE/./}
+if [ -z "$3" ]; then
+    LOOPBACK='noloopback'
+elif [ "$3" = 'loopback' ]; then
+    LOOPBACK='loopback'
+else
+    LOOPBACK='noloopback'
+fi
+
+prep() {
+    cat /dev/null > $OUTPUTFILE
+    if [ "$LOOPBACK" == 'loopback' ]; then
+        /usr/sbin/ip link set can0 type can bitrate 125000 triple-sampling on loopback on >> /dev/null
+    else
+        /usr/sbin/ip link set can0 type can bitrate 125000 triple-sampling on loopback off >> /dev/null
+    fi
+    ifconfig can0 up >> /dev/null
+}
+
+start_candump() {
+    candump can0 > $OUTPUTFILE &
+}
+
+listen() {
+
+    START_TIME=$(date +%s)
+    TIMEOUT_INTERVAL=5
+
+    [ -s $OUTPUTFILE ]
+    while [ $? == 1 ]
+    do
+        check_time_out $START_TIME $TIMEOUT_INTERVAL
+        [ -s $OUTPUTFILE ]
+    done
+    # cat $OUTPUTFILE
+    IFS= read -r line <$OUTPUTFILE
+    MESSAGEID_OUT=$(echo $line | awk '{print $2 }')
+    PAYLOAD=$(echo $line | awk '{$1=$2=$3=""; print $0 }')
+    PAYLOAD=$(echo $PAYLOAD | sed s/[[:space:]]/./g)
+    echo $MESSAGEID_OUT $PAYLOAD
+    quit
+}
+send_can() {
+    cansend can0 $MESSAGEID#$MESSAGE
+}
+
+check_time_out() {
+    CURRENT_TIME=$(date +%s)
+    if [ $CURRENT_TIME -gt $(expr $1 + $2) ]; then
+        echo 'no response received'
+        quit
+    fi
+}
+
+quit() {
+    ps | grep [c]andump | awk '{ print$1 }' | xargs kill
+    cat /dev/null > $OUTPUTFILE
+
+    # Reset CAN
+    ifconfig can0 down
+    /usr/sbin/ip link set can0 type can bitrate 125000 triple-sampling on loopback off
+
+    exit
+}
+
+prep
+start_candump
+sleep 2
+send_can
+listen

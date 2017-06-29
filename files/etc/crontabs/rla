@@ -1,0 +1,2 @@
+* * * * * /usr/sbin/rla-monitor.sh &
+* * * * * /usr/sbin/send-status-monitor.sh &

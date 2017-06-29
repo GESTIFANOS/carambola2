@@ -1,0 +1,77 @@
+#!/bin/sh
+
+# Prep for FCT test station
+
+echo 'Configuring RLA Controller for FCT test station ...'
+
+echo 'Loading default password files'
+cp /etc/test/passwd /etc/passwd
+/bin/chmod 660 /etc/passwd
+cp /etc/test/shadow-test /etc/shadow
+/bin/chmod 600 /etc/shadow
+
+echo 'Overwriting rc.local'
+cp /etc/test/rc.local /etc/rc.local
+
+CONFIGDIR=/etc/config
+TESTCONFIGDIR=/etc/test/config/fct
+
+echo 'Coping config files'
+cp $TESTCONFIGDIR/* $CONFIGDIR/
+
+#read mac address
+smac=$(/usr/sbin/short-mac)
+
+# set up ap
+echo 'Configure wirelss access point'
+hostname="STAC_$smac"
+ssid=$hostname
+echo "uci set ap ssid to $ssid"
+uci set wireless.wap.ssid=$ssid
+
+# set up station
+echo 'Configure wirelss station credentials'
+if [ -z "$1" ]
+  then
+    echo "No SSID supplied"
+else
+	echo "uci set station ssid to $1"
+	uci set wireless.wwan.ssid=$1
+fi
+
+if [ -z "$2" ]
+  then
+    echo "No passphrase supplied, assuming wifi is open"
+	uci set wireless.wwan.encryption=none    
+else
+	uci set wireless.wwan.encryption=psk2    
+	echo "uci set station passphrase to $2"
+	uci set wireless.wwan.key=$2
+fi
+
+echo 'uci commit wireless'
+uci commit wireless
+
+echo 'Configure network file'
+
+echo "uci set wwan hostname to $hostname"
+uci set network.wwan.hostname=$hostname
+echo 'uci commit network'
+uci commit network
+
+echo "Setting hostname to $hostname"
+uci set system.@system[0].hostname=$hostname
+
+echo 'uci commit system'
+uci commit system
+
+echo 'restart network'
+/etc/init.d/network restart
+wifi
+
+echo 'disable rla application during testing'
+/usr/sbin/rla-disable
+
+echo 'Ready for Final Teest'
+
+exit

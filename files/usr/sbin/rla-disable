@@ -1,0 +1,4 @@
+#!/bin/sh
+crontab -r
+/etc/init.d/rla disable
+killall rla-bin

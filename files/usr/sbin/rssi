@@ -1,0 +1,8 @@
+#!/bin/sh
+mac=$1
+
+if [ -n "$mac" ]; then
+    iw dev wlan0 station get "$mac" | grep 'signal:' | cut -f3- -d' ' | cut -c2-5 
+else
+    echo "MAC address is required as argument"
+fi

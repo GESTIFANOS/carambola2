@@ -1,0 +1,4 @@
+#!/bin/sh
+
+read X < /dev/ttyUSB0
+echo $X

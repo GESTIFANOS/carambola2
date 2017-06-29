@@ -1,0 +1,8 @@
+# Put your custom commands here that should be executed once
+# the system init finished. By default this file does nothing.
+
+# reconfigure UART register to disable RTS/CTS.  This allows
+# use of GPIO12, which we use for the antenna switch.
+mmio 0x18040030 0x70300
+
+exit 0

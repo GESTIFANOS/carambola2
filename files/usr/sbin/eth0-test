@@ -1,0 +1,7 @@
+#!/bin/sh
+
+# eth0 test
+
+ping -I eth0 -w 5 $1
+
+exit

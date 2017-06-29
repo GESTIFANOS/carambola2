@@ -1,0 +1,15 @@
+#!/bin/ash
+
+# Place in /sbin
+# Set cron to run every minute
+
+mac=$(cat /sys/class/net/wlan0/address)
+mac_concat="${mac//:}"
+while [ 1 ]; do
+	mqtt_message=$(mosquitto_sub -h 192.168.0.1 -R -C 1 -t status/rla/"${mac_concat}"/STATUS_LOW)
+	data=$(echo $mqtt_message | sed -e 's/.*body" : \({.*}\)[,}].*/\1/')
+	data=$(echo $data | sed -e "s/\(.*\)\(}\)/\1, \"device\": { \"macAddress\": \"$mac\" }\2/")
+	curl -H "Content-Type: application/json" -X POST -d "$data" http://api.dropsam.com/tcstatuslow
+	echo $data
+	sleep 60
+done

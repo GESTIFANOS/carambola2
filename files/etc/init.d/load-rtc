@@ -1,0 +1,19 @@
+#!/bin/sh /etc/rc.common
+# This will load the system time from rtc on boot
+# Save this file as /etc/init.d/load-rtc
+# Add execute to permissions chmod +x /etc/init.d/load-rtc
+# Use /etc/init.d/load-rtc enable to setup the rc.d files using this file.
+
+START=90
+STOP=5
+
+start() {
+	TIME=$(/usr/sbin/rtc r)
+	echo "Setting system time from rtc to "$TIME
+	date -s@$TIME
+}
+
+stop() {
+	echo "stop is not implemented for /etc/init.d/load-rtc"
+}
+

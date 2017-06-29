@@ -1,0 +1,40 @@
+#!/bin/sh
+ANTENNAGPIO=/sys/class/gpio/gpio12
+
+# before we do anything else, make sure the GPIO is free
+/usr/sbin/disable-ctsrts.sh > /dev/null
+
+if [ ! -d "$ANTENNAGPIO" ]; then
+#    echo "exporting gpio12"
+    echo 12 > /sys/class/gpio/export
+    echo 'out' > $ANTENNAGPIO/direction
+fi
+case "$1" in
+    J19)
+        echo 1 > $ANTENNAGPIO/value
+        ;;
+    J20)
+        echo 0 > $ANTENNAGPIO/value
+        ;;
+    "")
+        ;;
+    *)
+        echo "Invalid argument"
+        exit
+esac
+
+read state < $ANTENNAGPIO/value
+#echo $state
+case $state in
+    0)
+        echo J20
+        ;;
+    1)
+        echo J19
+        ;;
+    *)
+        echo "Invalid LED state"
+        exit
+esac
+
+

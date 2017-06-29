@@ -1,0 +1,17 @@
+#!/bin/sh /etc/rc.common
+# This will setup CAN
+# Save this file as /etc/init.d/can
+# Add execute to permissions chmod +x /etc/init.d/can
+# Use /etc/init.d/can enable to setup the rc.d files using this file.
+
+START=85
+STOP=5
+
+start() {
+	/usr/sbin/ip link set can0 type can bitrate 125000 triple-sampling on
+}
+
+stop() {
+	echo "stop"
+}
+

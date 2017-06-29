@@ -1,0 +1,57 @@
+#!/bin/sh
+
+# Prep for shipment
+
+echo 'Configuring RLA Controller for shipment ...'
+
+echo 'Loading default password files'
+cp /etc/test/passwd /etc/passwd
+/bin/chmod 660 /etc/passwd
+cp /etc/test/shadow /etc/shadow
+/bin/chmod 600 /etc/shadow
+
+CONFIGDIR=/etc/config
+TESTCONFIGDIR=/etc/test/config/ship
+
+echo 'Coping config files'
+cp $TESTCONFIGDIR/* $CONFIGDIR/
+
+echo 'Configure wirelss file'
+#read mac address
+smac=$(/usr/sbin/short-mac)
+
+hostname="STAC_$smac"
+ssid=$hostname
+echo "uci set ssid to $ssid"
+uci set wireless.wap.ssid=$ssid
+echo 'uci commit wireless'
+uci commit wireless
+
+echo 'Configure network file'
+
+echo "uci set mesh hostname to $hostname"
+uci set network.wmesh.hostname=$hostname
+echo 'uci commit network'
+uci commit network
+
+echo "Setting hostname to $hostname"
+uci set system.@system[0].hostname=$hostname
+
+echo 'uci commit system'
+uci commit system
+
+echo 'restart network'
+/etc/init.d/network restart
+wifi
+
+sleep 5
+
+echo 'set initial state to MANUAL'
+cp /etc/test/config/default-saved-state.json /etc/rla/saved-state.json
+
+echo 'enable rla-bin to run'
+/usr/sbin/rla-enable
+
+echo 'Ready for shipment'
+
+exit
